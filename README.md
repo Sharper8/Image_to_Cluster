@@ -39,54 +39,46 @@ kubectl get nodes
 **Déploiement d'une application (Docker Mario)**  
 ```
 kubectl create deployment mario --image=sevenajay/mario
-kubectl expose deployment mario --type=NodePort --port=80
-kubectl get svc
+------------------------------------------------------------------------------------------------------
+ATELIER: IMAGE TO CLUSTER — VERSION CONCISE
+------------------------------------------------------------------------------------------------------
+Objectif : construire une image Nginx (Packer optional), importer l'image dans un cluster K3d et déployer via Ansible.
+
+Prérequis rapides
+- Environnement recommandé : Ubuntu / GitHub Codespaces
+- Outils : `docker`, `kubectl`, `k3d`, `ansible-playbook` (optionnel : `packer`)
+
+Commandes clés
+- Vérifier / installer dépendances :
+```bash
+make deps
 ```
-**Forward du port 80**  
+- Flow complet (build + import + deploy) :
+```bash
+make all
 ```
-kubectl port-forward svc/mario 8080:80 >/tmp/mario.log 2>&1 &
+- Déploiement manuel (sans `make`) :
+```bash
+docker build -t image_to_cluster/nginx-custom:latest .
+k3d image import image_to_cluster/nginx-custom:latest -c lab
+ansible-playbook ansible/deploy.yml
 ```
-**Réccupération de l'URL de l'application Mario** 
-Votre application Mario est déployée sur le cluster K3d. Pour obtenir votre URL cliquez sur l'onglet **[PORTS]** dans votre Codespace et rendez public votre port **8080** (Visibilité du port).
-Ouvrez l'URL dans votre navigateur et jouer !
 
----------------------------------------------------
-Séquence 3 : Exercice
----------------------------------------------------
-Objectif : Customisez un image Docker avec Packer et déploiement sur K3d via Ansible
-Difficulté : Moyen/Difficile (~2h)
----------------------------------------------------  
-Votre mission (si vous l'acceptez) : Créez une **image applicative customisée à l'aide de Packer** (Image de base Nginx embarquant le fichier index.html présent à la racine de ce Repository), puis déployer cette image customisée sur votre **cluster K3d** via **Ansible**, le tout toujours dans **GitHub Codespace**.  
+Vérifications
+- Pods running : `kubectl get pods -l app=nginx-custom -o wide`
+- Service et accès :
+  - `kubectl get svc nginx-custom -o wide`
+  - `kubectl port-forward svc/nginx-custom 8080:80` → ouvrir `http://localhost:8080`
 
-**Architecture cible :** Ci-dessous, l'architecture cible souhaitée.   
-  
-![Screenshot Actions](Architecture_cible.png)   
-  
----------------------------------------------------  
-## Processus de travail (résumé)
+Dépannage rapide
+- `k3d` ou `ansible-playbook` manquants → `make deps` ou installer manuellement
+- `ImagePullBackOff` → vérifier `k3d image import` et `imagePullPolicy: IfNotPresent` dans `k8s/deployment.yaml`
 
-1. Installation du cluster Kubernetes K3d (Séquence 1)
-2. Installation de Packer et Ansible
-3. Build de l'image customisée (Nginx + index.html)
-4. Import de l'image dans K3d
-5. Déploiement du service dans K3d via Ansible
-6. Ouverture des ports et vérification du fonctionnement
+Livrable attendu
+- Commandes lancées, sorties `kubectl get pods`/`kubectl get svc` et capture d'écran de l'application.
 
----------------------------------------------------
-Séquence 4 : Documentation  
-Difficulté : Facile (~30 minutes)
----------------------------------------------------
-**Complétez et documentez ce fichier README.md** pour nous expliquer comment utiliser votre solution.  
-Faites preuve de pédagogie et soyez clair dans vos expliquations et processus de travail.  
-   
----------------------------------------------------
-Evaluation
----------------------------------------------------
-Cet atelier, **noté sur 20 points**, est évalué sur la base du barème suivant :  
-- Repository exécutable sans erreur majeure (4 points)
-- Fonctionnement conforme au scénario annoncé (4 points)
-- Degré d'automatisation du projet (utilisation de Makefile ? script ? ...) (4 points)
-- Qualité du Readme (lisibilité, erreur, ...) (4 points)
-- Processus travail (quantité de commits, cohérence globale, interventions externes, ...) (4 points) 
+------------------------------------------------------------------------------------------------------
+ Pour cette partie, fournissez une documentation claire et reproductible permettant à un évaluateur (ou à un collègue) de lancer l'ensemble du pipeline depuis un poste propre ou un Codespace. Voici exactement ce qu'il faut inclure et comment le tester.
+
 
 

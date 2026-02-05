@@ -16,7 +16,7 @@ import-image:
 deps:
 	@echo "Checking required tools: packer k3d ansible kubectl docker";
 	@which docker >/dev/null 2>&1 || (echo "docker is required but not found; please install Docker" && exit 1);
-	@which packer >/dev/null 2>&1 || (
+	@which packer >/dev/null 2>&1 || ( \
 		echo "packer not found; attempting to install via HashiCorp apt repo (Ubuntu/Debian)..." && \
 		if [ -f /etc/debian_version ]; then \
 			sudo apt-get update && sudo apt-get install -y curl gnupg software-properties-common && \
@@ -26,13 +26,13 @@ deps:
 		else \
 			echo "Non-debian OS: please install packer manually"; \
 		fi ) || true;
-	@which k3d >/dev/null 2>&1 || (
+	@which k3d >/dev/null 2>&1 || ( \
 		echo "k3d not found; attempting to install via upstream script..." && \
 		curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | sudo bash || echo "Failed to install k3d; please install manually" ) || true;
-	@which ansible-playbook >/dev/null 2>&1 || (
+	@which ansible-playbook >/dev/null 2>&1 || ( \
 		echo "ansible not found; attempting to install via apt..." && \
 		if [ -f /etc/debian_version ]; then sudo apt-get update && sudo apt-get install -y ansible || echo "Failed to install ansible; please install manually"; else echo "Non-debian OS: please install ansible manually"; fi ) || true;
-	@which kubectl >/dev/null 2>&1 || (
+	@which kubectl >/dev/null 2>&1 || ( \
 		echo "kubectl not found; attempting to install via apt (kubernetes apt repo)..." && \
 		if [ -f /etc/debian_version ]; then \
 			curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://dl.k8s.io/apt/doc/apt-key.gpg && \
