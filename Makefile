@@ -32,10 +32,7 @@ if ! command -v packer >/dev/null 2>&1; then \
         if command -v unzip >/dev/null 2>&1; then \
           unzip -o /tmp/packer.zip -d /tmp >/dev/null 2>&1 || true; \
         elif command -v python3 >/dev/null 2>&1; then \
-          python3 - <<"PY" || true
-import zipfile
-zipfile.ZipFile("/tmp/packer.zip").extractall("/tmp")
-PY
+          python3 -c "import zipfile; zipfile.ZipFile('/tmp/packer.zip').extractall('/tmp')" || true; \
         else \
           echo "unzip or python3 required to extract packer"; \
         fi; \
@@ -76,22 +73,22 @@ fi; \
 echo "deps check complete"; '
 
 deploy:
-  @if command -v ansible-playbook >/dev/null 2>&1; then \
-    ansible-playbook ansible/deploy.yml; \
-  elif command -v python3 >/dev/null 2>&1; then \
-    python3 -m ansible.cli.playbook ansible/deploy.yml || \
-    ( echo "ansible not available; falling back to kubectl" && \
-    kubectl apply -f k8s/deployment.yaml && \
-    kubectl rollout restart deployment/nginx-custom && \
-    kubectl rollout status deployment/nginx-custom --timeout=120s && \
-    kubectl get pods -l app=nginx-custom -o wide ); \
-  else \
-    echo "ansible not available; falling back to kubectl"; \
-    kubectl apply -f k8s/deployment.yaml && \
-    kubectl rollout restart deployment/nginx-custom && \
-    kubectl rollout status deployment/nginx-custom --timeout=120s && \
-    kubectl get pods -l app=nginx-custom -o wide; \
-  fi
+	@if command -v ansible-playbook >/dev/null 2>&1; then \
+		ansible-playbook ansible/deploy.yml; \
+	elif command -v python3 >/dev/null 2>&1; then \
+		python3 -m ansible.cli.playbook ansible/deploy.yml || \
+		( echo "ansible not available; falling back to kubectl" && \
+		kubectl apply -f k8s/deployment.yaml && \
+		kubectl rollout restart deployment/nginx-custom && \
+		kubectl rollout status deployment/nginx-custom --timeout=120s && \
+		kubectl get pods -l app=nginx-custom -o wide ); \
+	else \
+		echo "ansible not available; falling back to kubectl"; \
+		kubectl apply -f k8s/deployment.yaml && \
+		kubectl rollout restart deployment/nginx-custom && \
+		kubectl rollout status deployment/nginx-custom --timeout=120s && \
+		kubectl get pods -l app=nginx-custom -o wide; \
+	fi
 
 clean:
 	docker rmi image_to_cluster/nginx-custom:latest || true
