@@ -22,17 +22,37 @@ set -euo pipefail; \
 which docker >/dev/null 2>&1 || { echo "docker is required but not found; please install Docker"; exit 1; }; \
 if ! command -v packer >/dev/null 2>&1; then \
   echo "packer not found; attempting to download packer binary..."; \
-  if command -v curl >/dev/null 2>&1 && command -v unzip >/dev/null 2>&1; then \
+  if command -v curl >/dev/null 2>&1; then \
     VER=$$(curl -s https://checkpoint-api.hashicorp.com/v1/check/packer | sed -n "s/.*\"current_version\":\"\([^\"]*\)\".*/\1/p"); \
     if [ -n "$$VER" ]; then \
-      URL="https://releases.hashicorp.com/packer/$$VER/packer_$$VER_linux_amd64.zip"; \
+      URL="https://releases.hashicorp.com/packer/$${VER}/packer_$${VER}_linux_amd64.zip"; \
       echo "Downloading $$URL"; \
-      curl -sSLo /tmp/packer.zip "$$URL" && unzip -o /tmp/packer.zip -d /tmp && sudo install -m 0755 /tmp/packer /usr/local/bin/packer && rm -f /tmp/packer /tmp/packer.zip || echo "Failed to install packer binary"; \
+      curl -sSLo /tmp/packer.zip "$$URL" || true; \
+      if [ -s /tmp/packer.zip ]; then \
+        if command -v unzip >/dev/null 2>&1; then \
+          unzip -o /tmp/packer.zip -d /tmp >/dev/null 2>&1 || true; \
+        elif command -v python3 >/dev/null 2>&1; then \
+          python3 - <<"PY" || true
+import zipfile
+zipfile.ZipFile("/tmp/packer.zip").extractall("/tmp")
+PY
+        else \
+          echo "unzip or python3 required to extract packer"; \
+        fi; \
+        if [ -f /tmp/packer ]; then \
+          sudo install -m 0755 /tmp/packer /usr/local/bin/packer || true; \
+        else \
+          echo "Failed to extract packer binary"; \
+        fi; \
+        rm -f /tmp/packer /tmp/packer.zip || true; \
+      else \
+        echo "Failed to download packer archive"; \
+      fi; \
     else \
       echo "Could not determine packer version; please install packer manually"; \
     fi; \
   else \
-    echo "curl/unzip required to auto-install packer; please install packer manually"; \
+    echo "curl required to auto-install packer; please install packer manually"; \
   fi; \
 fi; \
 if ! command -v k3d >/dev/null 2>&1; then \
@@ -56,7 +76,22 @@ fi; \
 echo "deps check complete"; '
 
 deploy:
-	ansible-playbook ansible/deploy.yml
+  @if command -v ansible-playbook >/dev/null 2>&1; then \
+    ansible-playbook ansible/deploy.yml; \
+  elif command -v python3 >/dev/null 2>&1; then \
+    python3 -m ansible.cli.playbook ansible/deploy.yml || \
+    ( echo "ansible not available; falling back to kubectl" && \
+    kubectl apply -f k8s/deployment.yaml && \
+    kubectl rollout restart deployment/nginx-custom && \
+    kubectl rollout status deployment/nginx-custom --timeout=120s && \
+    kubectl get pods -l app=nginx-custom -o wide ); \
+  else \
+    echo "ansible not available; falling back to kubectl"; \
+    kubectl apply -f k8s/deployment.yaml && \
+    kubectl rollout restart deployment/nginx-custom && \
+    kubectl rollout status deployment/nginx-custom --timeout=120s && \
+    kubectl get pods -l app=nginx-custom -o wide; \
+  fi
 
 clean:
 	docker rmi image_to_cluster/nginx-custom:latest || true
