@@ -4,7 +4,14 @@
   vars:
     image: image_to_cluster/nginx-custom:latest
     cluster: lab
+    prune_local_images: false
   tasks:
+    - name: Optionally prune local Docker image (force rebuild)
+      when: prune_local_images | bool
+      ansible.builtin.shell: |
+        docker image rm -f "{{ image }}" || true
+        docker system prune -af || true
+
     - name: Import Docker image into k3d
       ansible.builtin.command:
         cmd: k3d image import "{{ image }}" -c "{{ cluster }}"
@@ -13,9 +20,20 @@
 
     - name: Apply Kubernetes manifests
       ansible.builtin.command:
-        cmd: kubectl apply -f k8s/deployment.yaml
+        cmd: kubectl apply -f "{{ playbook_dir }}/../k8s/deployment.yaml"
       register: kubectl_result
+
+    - name: Restart pods to pick up image changes
+      ansible.builtin.command:
+        cmd: kubectl rollout restart deployment/nginx-custom
 
     - name: Wait for deployment to be ready
       ansible.builtin.command:
         cmd: kubectl rollout status deployment/nginx-custom --timeout=120s
+
+    - name: Show pods
+      ansible.builtin.command:
+        cmd: kubectl get pods -l app=nginx-custom -o wide
+      register: pods
+    - ansible.builtin.debug:
+        var: pods.stdout_lines
