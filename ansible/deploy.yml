@@ -1,0 +1,21 @@
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    image: image_to_cluster/nginx-custom:latest
+    cluster: lab
+  tasks:
+    - name: Import Docker image into k3d
+      ansible.builtin.command:
+        cmd: k3d image import "{{ image }}" -c "{{ cluster }}"
+      register: import_result
+      changed_when: "'already exists' not in import_result.stdout"
+
+    - name: Apply Kubernetes manifests
+      ansible.builtin.command:
+        cmd: kubectl apply -f k8s/deployment.yaml
+      register: kubectl_result
+
+    - name: Wait for deployment to be ready
+      ansible.builtin.command:
+        cmd: kubectl rollout status deployment/nginx-custom --timeout=120s
